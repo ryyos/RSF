@@ -1,16 +1,19 @@
 import os
 import requests
 
+from APIRetrys import ApiRetry
 from pyquery import PyQuery
 from time import time
 from datetime import datetime
 from icecream import ic
+from tqdm import tqdm
 
 from src.utils.parser import Parser
 from src.utils.fileIO import File
 from src.utils.logs import logger
 from src.utils.corrector import vname
 
+requests = ApiRetry(show_logs=False, retry_interval=10)
 class Reporters:
     def __init__(self) -> None:
 
@@ -67,12 +70,15 @@ class Reporters:
 
     def main(self, url: str):
         response = requests.get(url)
-        ic(response)
         html = PyQuery(response.text)
         
         countrys = html.find(selector='div.country-list > div')
 
-        for country in countrys:
+        for country in tqdm(countrys,
+                            ascii=True, 
+                            smoothing=0.1,
+                            desc=f'YEAR: {int(url.split("=")[-1])}',
+                            total=len(countrys)):
 
             results = {
                 "crawling_time": str(datetime.now()),
@@ -84,10 +90,9 @@ class Reporters:
                 "article": self.__extract_data(url=self.API+PyQuery(country).attr('data-pays-name'))
             }
 
-            logger.info(f'country: {results["country"]}')
 
             self.__file.write_json(
-                path=f'data/{results["country"]}_{results["year"]}.json', 
+                path=f'data/{vname(results["country"])}_{results["year"]}.json', 
                 content=results)
         ...
 
